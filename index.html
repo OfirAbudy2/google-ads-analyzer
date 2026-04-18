@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- saved from url=(0046)file:///C:/Users/lenovo/Downloads/index_5.html -->
+<!-- saved from url=(0046)file:///C:/Users/lenovo/Downloads/index_6.html -->
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -344,7 +344,21 @@
     .empty-state { text-align: center; padding: 3rem 0; color: var(--text3); font-size: 13px; }
     .empty-icon { font-size: 36px; margin-bottom: 10px; }
   </style>
-  <script src="./Google Ads — Conversion Analyzer_files/chart.umd.js.download"></script>
+  <script>
+  function loadChartJS(callback) {
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
+    s.onload = callback;
+    s.onerror = function() {
+      var s2 = document.createElement('script');
+      s2.src = 'https://unpkg.com/chart.js@4.4.1/dist/chart.umd.min.js';
+      s2.onload = callback;
+      document.head.appendChild(s2);
+    };
+    document.head.appendChild(s);
+  }
+  window._chartJSReady = new Promise(function(resolve) { loadChartJS(resolve); });
+  </script><script src="./Google Ads — Conversion Analyzer_files/chart.umd.min.js.download"></script>
 </head>
 <body>
 
@@ -794,8 +808,7 @@ function renderDashboard(r) {
 
   const cd = r.campaignChartData;
   if (cd?.labels?.length) {
-    if (chartInst) chartInst.destroy();
-    chartInst = new Chart(document.getElementById('campaignChart'), {
+    window._chartJSReady.then(() => { if(chartInst) chartInst.destroy(); chartInst = new window.Chart(document.getElementById('campaignChart'), {
       type: 'bar',
       data: {
         labels: cd.labels,
@@ -812,7 +825,7 @@ function renderDashboard(r) {
           y: { ticks: { font: { size: 11 } } }
         }
       }
-    });
+    }); });
   }
 
   const kws = r.topKeywords || [];
