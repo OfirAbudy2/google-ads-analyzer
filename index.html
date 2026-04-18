@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Google Ads — Conversion Analyzer</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #ffffff;
+      --bg2: #f7f8fa;
+      --bg3: #f0f2f5;
+      --text: #111;
+      --text2: #555;
+      --text3: #999;
+      --border: rgba(0,0,0,0.1);
+      --border2: rgba(0,0,0,0.18);
+      --blue: #4285F4;
+      --green: #34A853;
+      --yellow: #FBBC04;
+      --red: #EA4335;
+      --radius: 10px;
+      --radius-lg: 14px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a1a;
+        --bg2: #242424;
+        --bg3: #2e2e2e;
+        --text: #f0f0f0;
+        --text2: #aaa;
+        --text3: #666;
+        --border: rgba(255,255,255,0.1);
+        --border2: rgba(255,255,255,0.18);
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg3);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── TOP BAR ── */
+    .topbar {
+      background: var(--bg);
+      border-bottom: 0.5px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      height: 58px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .topbar-logo {
+      width: 34px; height: 34px;
+      background: var(--blue);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .topbar-logo svg { width: 20px; height: 20px; fill: white; }
+    .topbar-title { font-size: 16px; font-weight: 600; color: var(--text); }
+    .topbar-sub { font-size: 12px; color: var(--text2); margin-left: 2px; }
+    .topbar-spacer { flex: 1; }
+    .topbar-score-badge {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1.5px solid var(--green);
+      color: var(--green);
+    }
+
+    /* ── MAIN LAYOUT ── */
+    .main { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+    /* ── API KEY BANNER ── */
+    .api-banner {
+      background: var(--bg);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .api-banner-icon { font-size: 20px; flex-shrink: 0; }
+    .api-banner-text { flex: 1; min-width: 200px; }
+    .api-banner-text strong { font-size: 13px; color: var(--text); }
+    .api-banner-text p { font-size: 12px; color: var(--text2); margin-top: 2px; }
+    .api-banner-input {
+      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    }
+    .api-banner-input input {
+      font-family: monospace;
+      font-size: 13px;
+      padding: 7px 12px;
+      border: 0.5px solid var(--border2);
+      border-radius: 8px;
+      background: var(--bg2);
+      color: var(--text);
+      width: 280px;
+      outline: none;
+    }
+    .api-banner-input input:focus { border-color: var(--blue); }
+    .btn-save-key {
+      padding: 7px 16px;
+      background: var(--blue);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .key-status { font-size: 12px; color: var(--green); display: none; }
+
+    /* ── TABS ── */
+    .tabs {
+      display: flex;
+      border-bottom: 0.5px solid var(--border);
+      margin-bottom: 1.5rem;
+      background: var(--bg);
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      padding: 0 1.25rem;
+    }
+    .tab-btn {
+      background: none; border: none;
+      border-bottom: 2px solid transparent;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: var(--text2);
+      cursor: pointer;
+      margin-bottom: -0.5px;
+      transition: color 0.15s;
+      font-weight: 400;
+    }
+    .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); font-weight: 500; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--bg);
+      border-radius: var(--radius-lg);
+      border: 0.5px solid var(--border);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .card-title {
+      font-size: 13px; font-weight: 500;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1rem;
+    }
+
+    /* ── REPORT TYPE CHIPS ── */
+    .report-types {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+      margin-bottom: 1.25rem;
+    }
+    .report-chip {
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      background: var(--bg2);
+    }
+    .report-chip.uploaded { border-color: var(--green); background: rgba(52,168,83,0.06); }
+    .report-chip-name { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 2px; }
+    .report-chip-desc { font-size: 11px; color: var(--text3); }
+    .report-chip-status { font-size: 11px; color: var(--text3); margin-top: 6px; }
+    .report-chip.uploaded .report-chip-status { color: var(--green); }
+
+    /* ── UPLOAD ZONE ── */
+    .upload-zone {
+      border: 1.5px dashed var(--border2);
+      border-radius: var(--radius-lg);
+      padding: 2.5rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .upload-zone:hover, .upload-zone.dragover {
+      border-color: var(--blue);
+      background: rgba(66,133,244,0.04);
+    }
+    .upload-icon { font-size: 36px; margin-bottom: 10px; }
+    .upload-label { font-size: 15px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
+    .upload-hint { font-size: 13px; color: var(--text2); }
+
+    /* ── FILE LIST ── */
+    .file-list { margin-top: 12px; display: flex; flex-direction: column; gap: 5px; }
+    .file-item {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px; color: var(--text2);
+      padding: 5px 8px;
+      border-radius: 6px;
+      background: var(--bg2);
+    }
+    .file-check { color: var(--green); }
+    .file-type-badge {
+      margin-left: auto;
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 10px;
+      background: rgba(66,133,244,0.1);
+      color: #185FA5;
+      font-weight: 500;
+    }
+
+    /* ── ANALYZE BUTTON ── */
+    .analyze-btn {
+      width: 100%;
+      padding: 13px;
+      background: var(--blue);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 1.25rem;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: opacity 0.15s;
+    }
+    .analyze-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .analyze-btn:hover:not(:disabled) { opacity: 0.88; }
+
+    /* ── METRICS GRID ── */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 10px;
+      margin-bottom: 1.5rem;
+    }
+    .metric-card {
+      background: var(--bg2);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+    }
+    .metric-label { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+    .metric-value { font-size: 22px; font-weight: 600; color: var(--text); }
+
+    /* ── SCORE RING ── */
+    .score-row {
+      display: flex; align-items: center; gap: 16px;
+      padding-bottom: 14px;
+      border-bottom: 0.5px solid var(--border);
+      margin-bottom: 14px;
+    }
+    .score-ring {
+      width: 54px; height: 54px; border-radius: 50%;
+      border: 3px solid var(--green);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; font-weight: 600;
+      flex-shrink: 0;
+    }
+    .score-summary { font-size: 13px; color: var(--text2); line-height: 1.55; flex: 1; }
+
+    /* ── RECOMMENDATIONS ── */
+    .rec-list { display: flex; flex-direction: column; gap: 0; }
+    .rec-item {
+      display: flex; gap: 10px;
+      padding: 12px 0;
+      border-bottom: 0.5px solid var(--border);
+    }
+    .rec-item:last-child { border-bottom: none; }
+    .rec-bar { width: 4px; border-radius: 3px; flex-shrink: 0; }
+    .rec-bar.high { background: var(--red); }
+    .rec-bar.medium { background: var(--yellow); }
+    .rec-bar.low { background: var(--green); }
+    .rec-body { flex: 1; }
+    .rec-tag {
+      display: inline-block; font-size: 10px; font-weight: 600;
+      padding: 2px 8px; border-radius: 10px; margin-bottom: 4px;
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .rec-tag.bid { background: rgba(66,133,244,0.12); color: #185FA5; }
+    .rec-tag.keyword { background: rgba(251,188,4,0.18); color: #7a4f00; }
+    .rec-tag.quality { background: rgba(52,168,83,0.12); color: #0F6E56; }
+    .rec-tag.budget { background: rgba(234,67,53,0.12); color: #993C1D; }
+    .rec-tag.audience { background: rgba(83,74,183,0.12); color: #3C3489; }
+    .rec-title { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 2px; }
+    .rec-detail { font-size: 12px; color: var(--text2); line-height: 1.5; }
+    .rec-impact { font-size: 11px; color: var(--text3); margin-top: 3px; }
+
+    /* ── KEYWORD TABLE ── */
+    .kw-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .kw-table th {
+      text-align: left; padding: 7px 10px;
+      color: var(--text2); font-weight: 500;
+      border-bottom: 0.5px solid var(--border);
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .kw-table td { padding: 8px 10px; border-bottom: 0.5px solid var(--border); color: var(--text); }
+    .kw-table tr:last-child td { border-bottom: none; }
+    .badge-conv { background: rgba(52,168,83,0.12); color: #0F6E56; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; }
+    .badge-waste { background: rgba(234,67,53,0.12); color: #993C1D; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; }
+
+    /* ── GUIDE ── */
+    .guide-step { display: flex; gap: 14px; margin-bottom: 18px; }
+    .step-num {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: var(--blue); color: white;
+      font-size: 12px; font-weight: 600;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 1px;
+    }
+    .step-title { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 3px; }
+    .step-desc { font-size: 13px; color: var(--text2); line-height: 1.55; }
+    .step-path {
+      display: inline-block; margin-top: 5px;
+      font-family: monospace; font-size: 12px;
+      background: var(--bg3); padding: 3px 9px;
+      border-radius: 5px; color: var(--text);
+    }
+
+    /* ── LOADING ── */
+    .loading-dots { display: inline-flex; gap: 5px; }
+    .loading-dots span {
+      width: 7px; height: 7px; border-radius: 50%; background: white;
+      animation: ld 1.2s infinite;
+    }
+    .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes ld { 0%,80%,100%{transform:scale(0.6);opacity:0.5} 40%{transform:scale(1);opacity:1} }
+
+    .empty-state { text-align: center; padding: 3rem 0; color: var(--text3); font-size: 13px; }
+    .empty-icon { font-size: 36px; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-logo">
+    <svg viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+  </div>
+  <div>
+    <div class="topbar-title">Google Ads Analyzer</div>
+    <div class="topbar-sub">Conversion maximization · AI-powered</div>
+  </div>
+  <div class="topbar-spacer"></div>
+  <div class="topbar-score-badge" id="topScore">
+    <span id="topScoreVal">--</span> / 100
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- API KEY BANNER -->
+  <div class="api-banner">
+    <div class="api-banner-icon">🔑</div>
+    <div class="api-banner-text">
+      <strong>Anthropic API key required</strong>
+      <p>Your key is stored locally in your browser and never sent anywhere except Anthropic's API.</p>
+    </div>
+    <div class="api-banner-input">
+      <input type="password" id="apiKeyInput" placeholder="sk-ant-..." />
+      <button class="btn-save-key" onclick="saveKey()">Save key</button>
+      <span class="key-status" id="keyStatus">✓ Key saved</span>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('upload')">Upload reports</button>
+    <button class="tab-btn" onclick="switchTab('dashboard')">Dashboard</button>
+    <button class="tab-btn" onclick="switchTab('guide')">Export guide</button>
+  </div>
+
+  <!-- ═══════════ UPLOAD TAB ═══════════ -->
+  <div id="tab-upload" class="tab-panel active">
+    <div class="card">
+      <div class="card-title">Report types</div>
+      <div class="report-types">
+        <div class="report-chip" id="chip-campaign">
+          <div class="report-chip-name">Campaigns</div>
+          <div class="report-chip-desc">Budget, cost, conversions, ROAS</div>
+          <div class="report-chip-status" id="chip-status-campaign">Not uploaded</div>
+        </div>
+        <div class="report-chip" id="chip-keywords">
+          <div class="report-chip-name">Keywords</div>
+          <div class="report-chip-desc">CTR, CPC, quality score</div>
+          <div class="report-chip-status" id="chip-status-keywords">Not uploaded</div>
+        </div>
+        <div class="report-chip" id="chip-search">
+          <div class="report-chip-name">Search terms</div>
+          <div class="report-chip-desc">What users actually searched</div>
+          <div class="report-chip-status" id="chip-status-search">Not uploaded</div>
+        </div>
+        <div class="report-chip" id="chip-ads">
+          <div class="report-chip-name">Ads</div>
+          <div class="report-chip-desc">Which creatives convert best</div>
+          <div class="report-chip-status" id="chip-status-ads">Not uploaded</div>
+        </div>
+      </div>
+
+      <div class="upload-zone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+        <div class="upload-icon">📂</div>
+        <div class="upload-label">Drop CSV files here</div>
+        <div class="upload-hint">Or click to browse — upload one or more Google Ads CSV exports</div>
+        <input type="file" id="fileInput" accept=".csv" multiple style="display:none" />
+      </div>
+
+      <div class="file-list" id="fileList"></div>
+
+      <button class="analyze-btn" id="analyzeBtn" disabled onclick="runAnalysis()">
+        <span id="analyzeBtnContent">Upload at least one report to analyze</span>
+      </button>
+    </div>
+
+    <!-- AI RESULTS -->
+    <div class="card" id="aiCard" style="display:none;">
+      <div class="card-title">AI recommendations</div>
+      <div id="aiBody"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════ DASHBOARD TAB ═══════════ -->
+  <div id="tab-dashboard" class="tab-panel">
+    <div class="empty-state" id="dashEmpty">
+      <div class="empty-icon">📊</div>
+      <div>Upload and analyze your reports to see the dashboard</div>
+    </div>
+    <div id="dashContent" style="display:none;">
+      <div class="metrics-grid" id="metricsGrid"></div>
+      <div class="card">
+        <div class="card-title">Cost vs conversions by campaign</div>
+        <div style="position:relative;width:100%;height:240px;">
+          <canvas id="campaignChart" role="img" aria-label="Bar chart showing cost and conversions by campaign"></canvas>
+        </div>
+        <div style="display:flex;gap:16px;margin-top:10px;font-size:12px;color:var(--text2);">
+          <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:rgba(66,133,244,0.7);display:inline-block;"></span>Cost</span>
+          <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:rgba(52,168,83,0.7);display:inline-block;"></span>Conversions</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Keyword performance</div>
+        <div style="overflow-x:auto;">
+          <table class="kw-table" id="kwTable">
+            <thead><tr><th>Keyword</th><th>Status</th><th>Note</th></tr></thead>
+            <tbody id="kwBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ GUIDE TAB ═══════════ -->
+  <div id="tab-guide" class="tab-panel">
+    <div class="card">
+      <div class="card-title">How to export reports from Google Ads</div>
+      <div class="guide-step">
+        <div class="step-num">1</div>
+        <div>
+          <div class="step-title">Open Google Ads and sign in</div>
+          <div class="step-desc">Go to <strong>ads.google.com</strong> and select your account.</div>
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="step-num">2</div>
+        <div>
+          <div class="step-title">Set your date range</div>
+          <div class="step-desc">Use the date picker (top right) — "Last 30 days" is recommended. Keep it consistent across all reports.</div>
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="step-num">3</div>
+        <div>
+          <div class="step-title">Export the Campaigns report</div>
+          <div class="step-desc">Left sidebar → Campaigns → click the download icon (↓) → CSV<span class="step-path">campaigns.csv</span></div>
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="step-num">4</div>
+        <div>
+          <div class="step-title">Export the Keywords report</div>
+          <div class="step-desc">Left sidebar → Keywords → Keyword → download → CSV<span class="step-path">keywords.csv</span></div>
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="step-num">5</div>
+        <div>
+          <div class="step-title">Export the Search Terms report</div>
+          <div class="step-desc">Left sidebar → Keywords → Search terms → download → CSV<span class="step-path">search_terms.csv</span></div>
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="step-num">6</div>
+        <div>
+          <div class="step-title">Export the Ads report</div>
+          <div class="step-desc">Left sidebar → Ads & assets → Ads → download → CSV<span class="step-path">ads.csv</span></div>
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="step-num">7</div>
+        <div>
+          <div class="step-title">Upload all files and analyze</div>
+          <div class="step-desc">Switch to the "Upload reports" tab, drop all CSVs, enter your API key, and click Analyze.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+let uploadedFiles = {};
+let parsedData   = {};
+let chartInst    = null;
+
+// ── API KEY ──
+function saveKey() {
+  const val = document.getElementById('apiKeyInput').value.trim();
+  if (!val) return;
+  localStorage.setItem('anthropic_key', val);
+  document.getElementById('keyStatus').style.display = 'inline';
+  setTimeout(() => document.getElementById('keyStatus').style.display = 'none', 2500);
+}
+function getKey() {
+  return localStorage.getItem('anthropic_key') || document.getElementById('apiKeyInput').value.trim();
+}
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('anthropic_key');
+  if (saved) {
+    document.getElementById('apiKeyInput').value = saved;
+    document.getElementById('keyStatus').style.display = 'inline';
+    setTimeout(() => document.getElementById('keyStatus').style.display = 'none', 1500);
+  }
+});
+
+// ── TABS ──
+function switchTab(t) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    b.classList.toggle('active', ['upload','dashboard','guide'][i] === t);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + t).classList.add('active');
+}
+
+// ── DRAG & DROP ──
+const dz = document.getElementById('dropzone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+document.getElementById('fileInput').addEventListener('change', e => handleFiles(e.target.files));
+
+// ── CSV PARSE ──
+function parseCSV(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length < 2) return { headers: [], rows: [] };
+  const headers = lines[0].split(',').map(h => h.replace(/"/g,'').trim());
+  const rows = lines.slice(1).map(line => {
+    const vals = line.split(',').map(v => v.replace(/"/g,'').trim());
+    const obj = {};
+    headers.forEach((h,i) => { obj[h] = vals[i] || ''; });
+    return obj;
+  });
+  return { headers, rows };
+}
+
+function detectType(filename, headers) {
+  const f = filename.toLowerCase();
+  const h = (headers||[]).join(' ').toLowerCase();
+  if (f.includes('keyword') || h.includes('keyword text') || h.includes('keyword')) return 'keywords';
+  if (f.includes('search') || h.includes('search term')) return 'search';
+  if (f.includes('ad') && !f.includes('campaign') || h.includes('headline') || h.includes('ad name')) return 'ads';
+  return 'campaign';
+}
+
+function handleFiles(files) {
+  Array.from(files).forEach(file => {
+    if (!file.name.endsWith('.csv')) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const parsed = parseCSV(e.target.result);
+      const type   = detectType(file.name, parsed.headers);
+      uploadedFiles[file.name] = { parsed, type, name: file.name };
+      parsedData[type] = parsed;
+      refreshUploadUI();
+    };
+    reader.readAsText(file);
+  });
+}
+
+function refreshUploadUI() {
+  const list  = document.getElementById('fileList');
+  const btn   = document.getElementById('analyzeBtn');
+  const btnC  = document.getElementById('analyzeBtnContent');
+  const types = ['campaign','keywords','search','ads'];
+  const typeCounts = {};
+  list.innerHTML = '';
+  Object.values(uploadedFiles).forEach(f => {
+    typeCounts[f.type] = (typeCounts[f.type]||0)+1;
+    const item = document.createElement('div');
+    item.className = 'file-item';
+    item.innerHTML = `<span class="file-check">✓</span><span>${f.name}</span><span class="file-type-badge">${f.type}</span>`;
+    list.appendChild(item);
+  });
+  types.forEach(t => {
+    const chip   = document.getElementById('chip-' + t);
+    const status = document.getElementById('chip-status-' + t);
+    if (typeCounts[t]) { chip.classList.add('uploaded'); status.textContent = '✓ Uploaded'; }
+    else { chip.classList.remove('uploaded'); status.textContent = 'Not uploaded'; }
+  });
+  const hasFiles = Object.keys(uploadedFiles).length > 0;
+  btn.disabled = !hasFiles;
+  btnC.textContent = hasFiles ? 'Analyze with AI →' : 'Upload at least one report to analyze';
+}
+
+// ── SUMMARIZE ──
+function summarize() {
+  const out = {};
+  if (parsedData.campaign) {
+    out.campaigns = parsedData.campaign.rows.slice(0,20).map(r => {
+      const e={}; Object.entries(r).forEach(([k,v])=>{ if(v&&v!=='--') e[k]=v; }); return e;
+    });
+  }
+  if (parsedData.keywords) {
+    out.keywords = parsedData.keywords.rows.slice(0,30).map(r => {
+      const e={}; Object.entries(r).forEach(([k,v])=>{ if(v&&v!=='--') e[k]=v; }); return e;
+    });
+  }
+  if (parsedData.search) {
+    out.searchTerms = parsedData.search.rows.slice(0,30).map(r => {
+      const e={}; Object.entries(r).forEach(([k,v])=>{ if(v&&v!=='--') e[k]=v; }); return e;
+    });
+  }
+  if (parsedData.ads) {
+    out.ads = parsedData.ads.rows.slice(0,20).map(r => {
+      const e={}; Object.entries(r).forEach(([k,v])=>{ if(v&&v!=='--') e[k]=v; }); return e;
+    });
+  }
+  return out;
+}
+
+// ── ANALYZE ──
+async function runAnalysis() {
+  const key = getKey();
+  if (!key) { alert('Please enter your Anthropic API key first.'); return; }
+  const btn   = document.getElementById('analyzeBtn');
+  const btnC  = document.getElementById('analyzeBtnContent');
+  const card  = document.getElementById('aiCard');
+  const body  = document.getElementById('aiBody');
+  btn.disabled = true;
+  btnC.innerHTML = '<span class="loading-dots"><span></span><span></span><span></span></span> Analyzing...';
+  card.style.display = 'block';
+  body.innerHTML = '<div style="text-align:center;padding:2rem 0;color:var(--text3);font-size:13px;">Sending to Claude AI…</div>';
+
+  const prompt = `You are a Google Ads expert specializing in conversion maximization campaigns.
+Analyze the campaign data below and return a JSON object ONLY — no markdown, no preamble.
+
+Data:
+${JSON.stringify(summarize(), null, 2)}
+
+Return this exact JSON shape:
+{
+  "overallScore": <1-100>,
+  "summary": "<2-sentence overall assessment>",
+  "metrics": {
+    "totalCost": "<string>",
+    "totalConversions": "<string>",
+    "avgCPC": "<string>",
+    "avgCTR": "<string>",
+    "conversionRate": "<string>",
+    "costPerConversion": "<string>"
+  },
+  "recommendations": [
+    {
+      "priority": "high|medium|low",
+      "category": "bid|keyword|quality|budget|audience",
+      "title": "<short title>",
+      "detail": "<specific actionable recommendation>",
+      "impact": "<expected impact on conversions>"
+    }
+  ],
+  "topKeywords": [
+    { "keyword": "<kw>", "status": "converting|wasting", "note": "<why>" }
+  ],
+  "campaignChartData": {
+    "labels": ["<names>"],
+    "cost": [<numbers>],
+    "conversions": [<numbers>]
+  }
+}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1500,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    const raw  = data.content?.find(b => b.type==='text')?.text || '';
+    const result = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    renderResults(result);
+    renderDashboard(result);
+  } catch(err) {
+    body.innerHTML = `<div style="color:var(--red);font-size:13px;padding:1rem 0;">Analysis failed: ${err.message}. Check your API key and try again.</div>`;
+  } finally {
+    btn.disabled = false;
+    btnC.textContent = 'Re-analyze →';
+  }
+}
+
+function scoreColor(s) {
+  return s >= 70 ? '#34A853' : s >= 45 ? '#FBBC04' : '#EA4335';
+}
+
+function renderResults(r) {
+  const body = document.getElementById('aiBody');
+  const sc   = Math.round(r.overallScore || 0);
+  const col  = scoreColor(sc);
+  const badge = document.getElementById('topScore');
+  document.getElementById('topScoreVal').textContent = sc;
+  badge.style.borderColor = col;
+  badge.style.color = col;
+  badge.style.display = 'flex';
+
+  const recs = (r.recommendations||[]).map(rec => `
+    <div class="rec-item">
+      <div class="rec-bar ${rec.priority}"></div>
+      <div class="rec-body">
+        <span class="rec-tag ${rec.category}">${rec.category}</span>
+        <div class="rec-title">${rec.title}</div>
+        <div class="rec-detail">${rec.detail}</div>
+        <div class="rec-impact">Expected impact: ${rec.impact}</div>
+      </div>
+    </div>
+  `).join('');
+
+  body.innerHTML = `
+    <div class="score-row">
+      <div class="score-ring" style="border-color:${col};color:${col};">${sc}</div>
+      <div class="score-summary">${r.summary||''}</div>
+    </div>
+    <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">
+      ${(r.recommendations||[]).length} recommendations
+    </div>
+    <div class="rec-list">${recs}</div>
+  `;
+}
+
+function renderDashboard(r) {
+  document.getElementById('dashEmpty').style.display  = 'none';
+  document.getElementById('dashContent').style.display = 'block';
+
+  const m = r.metrics || {};
+  const metrics = [
+    { label: 'Total cost',     value: m.totalCost       || '--' },
+    { label: 'Conversions',    value: m.totalConversions || '--' },
+    { label: 'Avg CPC',        value: m.avgCPC           || '--' },
+    { label: 'CTR',            value: m.avgCTR           || '--' },
+    { label: 'Conv. rate',     value: m.conversionRate   || '--' },
+    { label: 'Cost / conv.',   value: m.costPerConversion|| '--' },
+  ];
+  document.getElementById('metricsGrid').innerHTML = metrics.map(m => `
+    <div class="metric-card">
+      <div class="metric-label">${m.label}</div>
+      <div class="metric-value">${m.value}</div>
+    </div>
+  `).join('');
+
+  const cd = r.campaignChartData;
+  if (cd?.labels?.length) {
+    if (chartInst) chartInst.destroy();
+    chartInst = new Chart(document.getElementById('campaignChart'), {
+      type: 'bar',
+      data: {
+        labels: cd.labels,
+        datasets: [
+          { label: 'Cost',        data: cd.cost,        backgroundColor: 'rgba(66,133,244,0.7)', borderRadius: 4 },
+          { label: 'Conversions', data: cd.conversions, backgroundColor: 'rgba(52,168,83,0.7)',  borderRadius: 4 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { autoSkip: false, maxRotation: 35, font: { size: 11 } } },
+          y: { ticks: { font: { size: 11 } } }
+        }
+      }
+    });
+  }
+
+  const kws = r.topKeywords || [];
+  document.getElementById('kwBody').innerHTML = kws.map(k => `
+    <tr>
+      <td>${k.keyword}</td>
+      <td><span class="${k.status==='converting'?'badge-conv':'badge-waste'}">${k.status}</span></td>
+      <td style="color:var(--text2)">${k.note}</td>
+    </tr>
+  `).join('');
+}
+</script>
+</body>
+</html>
